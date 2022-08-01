@@ -6,7 +6,6 @@ use actix_web::{
 pub mod chat;
 pub mod index;
 pub mod login;
-//pub mod logout;
 pub mod register;
 
 pub async fn test() -> impl Responder {

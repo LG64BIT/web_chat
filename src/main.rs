@@ -11,7 +11,6 @@ use models::lobby::Lobby;
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
-extern crate redis;
 
 pub mod jwt;
 pub mod models;
