@@ -12,6 +12,19 @@ use actix_web::web::Data;
 use actix_web::{web::Json, HttpRequest, HttpResponse};
 use validator::Validate;
 
+/// Adds new group and automatically joins it
+///
+/// # HTTP request
+/// Request must be in [Json] format
+/// ## Header
+/// * jwt: [String] - JWT autorization token
+/// ## Body
+/// * name: [String] - group name, minimum 3 characters long
+///
+/// #HTTP response
+/// Success code: 200
+///
+/// Error code: 400, 403, 500
 pub async fn handle(
     state: Data<AppState>,
     req: HttpRequest,

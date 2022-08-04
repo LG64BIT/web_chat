@@ -1,3 +1,9 @@
+/*!
+API for basic web-sockets realtime chat. It is multy threaded, supports multiple group chats with multiple users per chat.
+# Overview
+Crate provides basic authentification functionalities (header auth with stateless [jwt])
+
+*/
 use actix::Actor;
 use actix_web::middleware::Logger;
 use actix_web::web;
@@ -16,14 +22,15 @@ extern crate diesel_migrations;
 
 embed_migrations!("migrations");
 
-pub mod jwt;
 pub mod models;
 pub mod routes;
-pub mod schema;
 pub mod utils;
+mod jwt;
+mod schema;
 
+///Program entrance point
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+pub async fn main() -> std::io::Result<()> {
     dotenv().ok();
     let chat_server = Lobby::default().start(); //create and spin up a lobby
     HttpServer::new(move || {

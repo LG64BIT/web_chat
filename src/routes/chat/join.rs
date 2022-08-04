@@ -8,6 +8,19 @@ use actix_web::web::Data;
 use actix_web::{web::Json, HttpRequest, HttpResponse};
 use diesel::QueryDsl;
 
+/// Joins current user to provided group
+///
+/// # HTTP request
+/// Request must be in [Json] format
+/// ## Header
+/// * jwt: [String] - JWT autorization token
+/// ## Body
+/// * id: [String] - group id
+///
+/// # HTTP response
+/// Success code: 200
+///
+/// Error code: 403, 404, 500
 pub async fn handle(
     state: Data<AppState>,
     req: HttpRequest,
@@ -15,7 +28,7 @@ pub async fn handle(
 ) -> HttpResponse {
     let user = match User::is_logged(&req) {
         Ok(user) => user,
-        Err(_) => return HttpResponse::Forbidden().finish(),
+        Err(e) => return HttpResponse::Forbidden().json(e.to_string()),
     };
     let connection = state.get_pg_connection();
     let group_count = match groups::table

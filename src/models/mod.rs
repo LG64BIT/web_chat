@@ -1,3 +1,4 @@
+//! Module with all models
 pub mod group;
 pub mod lobby;
 pub mod messages;

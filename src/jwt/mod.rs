@@ -1,16 +1,19 @@
+//!Jason web token module, relying on [jsonwebtoken] crate
 use chrono::{Duration, Utc};
 use jsonwebtoken::{errors::Error, *};
 use serde::{Deserialize, Serialize};
 
 use crate::models::user::User;
 #[derive(Debug, Serialize, Deserialize)]
+
+/// Main structure for encoding user info into token
 pub struct UserClaims {
     pub id: String,
     pub username: String,
     pub exp: i64,
     pub iat: i64,
 }
-
+/// Function for encoding token from [User] struct.
 pub fn generate(user: &User) -> String {
     let secret = dotenv::var("JWT_SECRET_KEY").unwrap_or_else(|_| "".into());
     let duration = dotenv::var("JWT_LIFETIME_IN_SECONDS")
@@ -31,7 +34,7 @@ pub fn generate(user: &User) -> String {
     )
     .unwrap_or_default()
 }
-
+///Function for verifing token and returning user instance from token
 pub fn verify(token: String) -> Result<User, Error> {
     let secret = dotenv::var("JWT_SECRET_KEY");
     let secret = secret.unwrap_or_else(|_| "".into());

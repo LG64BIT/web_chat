@@ -11,6 +11,7 @@ use uuid::Uuid;
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Struct for representing web socket connection
 pub struct WsConn {
     room: Uuid,
     lobby_addr: Addr<Lobby>,
@@ -19,6 +20,7 @@ pub struct WsConn {
 }
 
 impl WsConn {
+    /// Function that creates new [WsConn] instance for currently logged in user
     pub fn new(room: Uuid, lobby: Addr<Lobby>, user_id: Uuid) -> WsConn {
         WsConn {
             id: user_id, //Uuid::new_v4(),
@@ -31,7 +33,7 @@ impl WsConn {
 
 impl Actor for WsConn {
     type Context = ws::WebsocketContext<Self>;
-
+    /// Actor state function, gets called first when [ws::start] function is called
     fn started(&mut self, ctx: &mut Self::Context) {
         self.hb(ctx);
 
@@ -52,7 +54,7 @@ impl Actor for WsConn {
             })
             .wait(ctx);
     }
-
+    /// Actor state function, sends disconnect message to group and stops actor
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
         self.lobby_addr.do_send(Disconnect {
             id: self.id,
@@ -63,6 +65,10 @@ impl Actor for WsConn {
 }
 
 impl WsConn {
+    /// Function that preforms heartbeating
+    /// * Heartbeating is occasionally checking if client is still responsive
+    /// by pinging him by some message.
+    /// * [HEARTBEAT_INTERVAL] constant defines period of heartbeating
     fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
         ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
@@ -81,6 +87,7 @@ impl WsConn {
 }
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
+    /// Implementing web socket message support for WsConn
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Ping(msg)) => {
@@ -112,7 +119,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
 
 impl Handler<WsMessage> for WsConn {
     type Result = ();
-
+    /// Method that specifies how WsConn should handle WsMessage
     fn handle(&mut self, msg: WsMessage, ctx: &mut Self::Context) {
         ctx.text(msg.0);
     }

@@ -1,3 +1,4 @@
+use super::user::User;
 use crate::{
     models::messages::{ClientActorMessage, Connect, Disconnect, WsMessage},
     utils,
@@ -6,15 +7,14 @@ use actix::prelude::{Actor, Context, Handler, Recipient};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
-use super::user::User;
-
 type Socket = Recipient<WsMessage>;
-
+/// Struct for representing global lobby which consists of groups
 pub struct Lobby {
     sessions: HashMap<Uuid, Socket>,     //self id to self
     rooms: HashMap<Uuid, HashSet<Uuid>>, //room id  to list of users id
 }
 
+/// By default lobby is created empty
 impl Default for Lobby {
     fn default() -> Lobby {
         Lobby {
@@ -25,6 +25,7 @@ impl Default for Lobby {
 }
 
 impl Lobby {
+    /// Method for sending message to user with provided id
     fn send_message(&self, message: &str, id_to: &Uuid) {
         if let Some(socket_recipient) = self.sessions.get(id_to) {
             let _ = socket_recipient.do_send(WsMessage(message.to_owned()));
@@ -40,7 +41,7 @@ impl Actor for Lobby {
 
 impl Handler<Disconnect> for Lobby {
     type Result = ();
-
+    /// Method for handling disconnect messages by lobby
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
         let connection = utils::establish_connection();
         let username = User::get_username(&connection, &msg.id.to_string()).unwrap();
@@ -67,7 +68,7 @@ impl Handler<Disconnect> for Lobby {
 
 impl Handler<Connect> for Lobby {
     type Result = ();
-
+    /// Method for handling connect messages by lobby
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         let connection = utils::establish_connection();
         let username = User::get_username(&connection, &msg.self_id.to_string()).unwrap();
@@ -90,7 +91,7 @@ impl Handler<Connect> for Lobby {
 
 impl Handler<ClientActorMessage> for Lobby {
     type Result = ();
-
+    /// Method for handling direct messages by lobby
     fn handle(&mut self, msg: ClientActorMessage, _ctx: &mut Context<Self>) -> Self::Result {
         if msg.msg.starts_with("\\w") {
             if let Some(id_to) = msg.msg.split(' ').collect::<Vec<&str>>().get(1) {

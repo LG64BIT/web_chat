@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 pub const MIN_USERNAME_LENGTH: u8 = 5;
 pub const MIN_PASSWORD_LENGTH: u8 = 8;
 
+/// Main struct for manipulating with user data
 #[derive(Queryable, Debug, Deserialize, Serialize)]
 pub struct User {
     pub id: String,
@@ -20,6 +21,7 @@ pub struct User {
     pub password: String,
 }
 
+/// Custom error type for handling user errors
 #[derive(Debug, Display, Clone)]
 pub enum UserError {
     AlreadyExistsError,
@@ -28,12 +30,13 @@ pub enum UserError {
     InvalidCredentials,
 }
 
+/// Implementing ResponseError so that UserError can be returned in handler functions
 impl ResponseError for UserError {
     fn status_code(&self) -> StatusCode {
         match self {
             UserError::AlreadyExistsError => StatusCode::ALREADY_REPORTED,
             UserError::NotFoundError => StatusCode::NOT_FOUND,
-            UserError::ConnectionError => StatusCode::REQUEST_TIMEOUT,
+            UserError::ConnectionError => StatusCode::INTERNAL_SERVER_ERROR,
             UserError::InvalidCredentials => StatusCode::BAD_REQUEST,
         }
     }
@@ -45,9 +48,9 @@ impl ResponseError for UserError {
     }
 }
 
-//Get user by username from database
 impl User {
-    pub fn get(connection: &PgConnection, username: &str) -> Result<Self, UserError> {
+    /// Get [User] by username from database
+    pub fn get_by_username(connection: &PgConnection, username: &str) -> Result<Self, UserError> {
         let result = users::table
             .select(users::all_columns)
             .filter(users::username.eq(username))
@@ -65,7 +68,7 @@ impl User {
             password: result[0].password.clone(),
         })
     }
-
+    /// Get username: [String] of user with provided id: [String]
     pub fn get_username(connection: &PgConnection, id: &str) -> Result<String, UserError> {
         let username = match users::table
             .select(users::username)
@@ -77,40 +80,37 @@ impl User {
         };
         Ok(username)
     }
-
+    /// Check if username: [String] is available for use
     fn is_available_username(connection: &PgConnection, username: &str) -> bool {
-        let result = User::get(connection, username);
+        let result = User::get_by_username(connection, username);
         if result.is_err() {
             return true;
         }
         return false;
     }
-
-    //remove from database
-    // pub fn remove(username: &str) {
-    //     let connection = utils::establish_connection();
-    //     diesel::delete(users::table.filter(users::username.eq(username)))
-    //         .execute(&connection)
-    //         .expect("Error deleting file");
-    // }
-
+    /// Check if user is registered
+    /// # Returns
+    /// ## On success
+    /// * Tuple of registered user and generated token, (user: [User], token: [String])
+    /// ## On faliure
+    /// * error: [UserError]
     pub fn authenticate(
         connection: &PgConnection,
         username: &str,
         password: &str,
     ) -> Result<(User, String), UserError> {
-        let user = User::get(&connection, &username)?;
+        let user = User::get_by_username(&connection, &username)?;
         if !verify(password, &user.password).unwrap() {
             return Err(UserError::InvalidCredentials);
         }
         let token = user.generate_jwt();
         Ok((user, token))
     }
-
+    /// Method for generating token: [String] on current user object
     pub fn generate_jwt(&self) -> String {
         crate::jwt::generate(&self)
     }
-
+    /// Function for creating [User] struct from [UserClaims] struct
     pub fn from_jwt(claims: &UserClaims) -> Self {
         User {
             id: String::from(&claims.id),
@@ -118,13 +118,13 @@ impl User {
             password: String::new(),
         }
     }
-
+    ///Check if user is currently logged in
+    /// # Returns
+    /// ## On success
+    /// * Currently logged in user: [User]
+    /// ## On faliure
+    /// * error: [UserError]
     pub fn is_logged(req: &HttpRequest) -> Result<User, UserError> {
-        //let user_cookie = match req.cookie("jwt") {
-        //     Some(cookie) => cookie,
-        //     None => return false,
-        // };
-        //let user_jwt = user_cookie.value().to_string();
         let user_jwt = match req.headers().get("jwt") {
             Some(jwt) => jwt.to_str().unwrap(),
             None => return Err(UserError::InvalidCredentials),
@@ -134,7 +134,12 @@ impl User {
             Err(_) => Err(UserError::InvalidCredentials),
         }
     }
-
+    /// Method on User object, joins self to provided group
+    /// # Returns
+    /// ## On success
+    /// * ()
+    /// ## On faliure
+    /// * error: [Error]
     pub fn join_group(&self, connection: &PgConnection, group_id: &str) -> Result<(), Error> {
         let new_user_group = (
             groups_users::user_id.eq(self.id.clone()),
@@ -150,7 +155,7 @@ impl User {
     }
 }
 
-//insert into database
+/// Struct for validating and inserting [User] into database
 #[derive(Insertable, Debug, Serialize, Deserialize, validator::Validate)]
 #[table_name = "users"]
 pub struct NewUser {
@@ -161,6 +166,12 @@ pub struct NewUser {
 }
 
 impl NewUser {
+    /// Function that crates new user record in database
+    /// # Returns
+    /// ## On success
+    /// * Newly created user: [User]
+    /// ## On faliure
+    /// * error: [UserError]
     pub fn create(
         connection: &PgConnection,
         username: &str,

@@ -12,6 +12,34 @@ use actix_web::{HttpRequest, HttpResponse, Responder};
 use diesel::result::Error;
 use diesel::QueryDsl;
 
+/// Gets currently logged in (self) user info
+/// # HTTP request
+/// Request must be in [Json](actix_web::web::Json) format
+/// ## Header
+/// * jwt: [String] - JWT autorization token
+///
+/// # HTTP response
+/// * Success code: 200
+/// * Response is in [Json](actix_web::web::Json) format
+/// ```
+/// {
+///  "user": {
+///      "id": "f7169845-4de5-470e-bb76-7117d4620d8c",
+///      "username": "test_user"
+///  },
+///     "groups": [
+///         {
+///             "id": "9780f090-82a7-47dc-a64a-c4b1ad3c978d",
+///             "name": "group_1"
+///         },
+///         {
+///             "id": "d819befb-c975-4a0d-bdcd-b619848f1b5b",
+///             "name": "group_2"
+///         }
+///     ]
+///  }
+/// ```
+/// Error code: 403
 pub async fn handle(state: Data<AppState>, req: HttpRequest) -> impl Responder {
     if let Ok(user) = User::is_logged(&req) {
         let connection = state.get_pg_connection();
@@ -29,9 +57,4 @@ pub async fn handle(state: Data<AppState>, req: HttpRequest) -> impl Responder {
     } else {
         HttpResponse::Forbidden().finish()
     }
-    // let user_cookie = match req.cookie("jwt") {
-    //     Some(cookie) => cookie,
-    //     None => return HttpResponse::Forbidden().finish()
-    // };
-    //let user_jwt = user_cookie.value().to_string();
 }

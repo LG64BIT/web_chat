@@ -14,6 +14,16 @@ use actix_web_actors::ws;
 use diesel::QueryDsl;
 use uuid::Uuid;
 
+/// Enters selected chat group
+/// # HTTP request
+/// ## Header
+/// * jwt: [String] - JWT autorization token
+///
+/// # HTTP response
+/// Success code: 101
+/// Switching to web-socket protocol v13
+///
+/// Error code: 403, 500
 pub async fn handle(
     state: Data<AppState>,
     req: HttpRequest,
@@ -21,7 +31,6 @@ pub async fn handle(
     group_id: web::Path<Uuid>,
     srv: Data<Addr<Lobby>>,
 ) -> Result<HttpResponse, Error> {
-    //println!("{:?}", req.cookies());
     let user = match User::is_logged(&req) {
         Ok(u) => u,
         _ => return Ok(HttpResponse::Forbidden().finish()),
