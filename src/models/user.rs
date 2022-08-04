@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 pub const MIN_USERNAME_LENGTH: u8 = 5;
 pub const MIN_PASSWORD_LENGTH: u8 = 8;
 
-#[derive(Queryable, Debug, Serialize)]
+#[derive(Queryable, Debug, Deserialize, Serialize)]
 pub struct User {
     pub id: String,
     pub username: String,
@@ -151,7 +151,7 @@ impl User {
 }
 
 //insert into database
-#[derive(Insertable, Debug, Deserialize, validator::Validate)]
+#[derive(Insertable, Debug, Serialize, Deserialize, validator::Validate)]
 #[table_name = "users"]
 pub struct NewUser {
     #[validate(length(min = "MIN_USERNAME_LENGTH"))]

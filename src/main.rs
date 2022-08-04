@@ -11,6 +11,10 @@ use models::lobby::Lobby;
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
+#[macro_use]
+extern crate diesel_migrations;
+
+embed_migrations!("migrations");
 
 pub mod jwt;
 pub mod models;
