@@ -1,4 +1,4 @@
-use crate::{models::user::NewUser, utils::AppState};
+use crate::{errors::ShopError, models::user::NewUser, utils::AppState};
 use actix_web::{
     web::{Data, Json},
     HttpResponse,
@@ -23,16 +23,11 @@ use validator::Validate;
 /// }
 /// ```
 /// Error code: 208, 400, 500
-pub async fn handle(state: Data<AppState>, user: Json<NewUser>) -> HttpResponse {
-    let connection = state.get_pg_connection();
-    match user.validate() {
-        Ok(_) => (),
-        Err(e) => return HttpResponse::BadRequest().json(e),
-    };
-    match NewUser::create(&connection, &user.username, &user.password) {
-        Ok(created) => HttpResponse::Ok().json(created),
-        Err(e) => HttpResponse::from_error(e),
-    }
+pub async fn handle(state: Data<AppState>, user: Json<NewUser>) -> Result<HttpResponse, ShopError> {
+    let connection = state.get_pg_connection()?;
+    user.validate()?;
+    let created = NewUser::create(&connection, &user.username, &user.password)?;
+    Ok(HttpResponse::Ok().json(created))
 }
 
 #[cfg(test)]

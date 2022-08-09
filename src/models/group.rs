@@ -1,5 +1,10 @@
 use super::user::User;
-use crate::schema::groups;
+use crate::diesel::ExpressionMethods;
+use crate::{
+    errors::ShopError,
+    schema::{groups, groups_users},
+};
+use diesel::{PgConnection, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 
 /// Struct for representing chat group
@@ -33,4 +38,15 @@ pub struct JoinableGroup {
 pub struct UserGroups {
     pub user: User,
     pub groups: Option<Vec<Group>>,
+}
+impl Group {
+    pub fn delete(connection: &PgConnection, group_id: &str) -> Result<(), ShopError> {
+        diesel::delete(groups_users::table)
+            .filter(groups_users::group_id.eq(group_id))
+            .execute(connection)?;
+        diesel::delete(groups::table)
+            .filter(groups::id.eq(group_id))
+            .execute(connection)?;
+        Ok(())
+    }
 }

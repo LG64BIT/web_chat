@@ -9,7 +9,6 @@ use actix_web::middleware::Logger;
 use actix_web::web;
 use actix_web::web::Data;
 use actix_web::App;
-use actix_web::HttpResponse;
 use actix_web::HttpServer;
 use dotenv::dotenv;
 use models::lobby::Lobby;
@@ -22,24 +21,24 @@ extern crate diesel_migrations;
 
 embed_migrations!("migrations");
 
+pub mod errors;
+mod jwt;
 pub mod models;
 pub mod routes;
-pub mod utils;
-mod jwt;
 mod schema;
+pub mod utils;
 
 ///Program entrance point
 #[actix_web::main]
 pub async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    let chat_server = Lobby::default().start(); //create and spin up a lobby
+    let chat_server = Lobby::default().start();
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(utils::initialize()))
             .wrap(Logger::default())
             .service(web::scope("/").configure(routes::router))
-            .default_service(web::to(|| HttpResponse::Ok()))
-            .app_data(Data::new(chat_server.clone())) //register the lobby
+            .app_data(Data::new(chat_server.clone()))
     })
     .bind(("127.0.0.1", 8080))?
     .run()

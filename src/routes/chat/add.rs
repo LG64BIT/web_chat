@@ -1,4 +1,5 @@
 use crate::diesel::RunQueryDsl;
+use crate::errors::ShopError;
 use crate::models::group::Group;
 use crate::utils::AppState;
 use crate::{
@@ -29,30 +30,17 @@ pub async fn handle(
     state: Data<AppState>,
     req: HttpRequest,
     group: Json<NewGroup>,
-) -> HttpResponse {
-    let user = match User::is_logged(&req) {
-        Ok(user) => user,
-        Err(e) => return HttpResponse::Forbidden().json(e.to_string()),
-    };
-    let connection = state.get_pg_connection();
-    match group.validate() {
-        Ok(_) => (),
-        Err(e) => return HttpResponse::BadRequest().json(e.to_string()),
-    };
+) -> Result<HttpResponse, ShopError> {
+    let user = User::is_logged(&req)?;
+    let connection = state.get_pg_connection()?;
+    group.validate()?;
     let insertable_group = InsertableNewGroup {
         name: group.into_inner().name,
         owner_id: user.id.clone(),
     };
-    let new_group: Vec<Group> = match diesel::insert_into(groups::table)
+    let new_group: Group = diesel::insert_into(groups::table)
         .values(insertable_group)
-        .get_results::<Group>(&connection)
-    {
-        Ok(group) => group,
-        Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
-    };
-    match user.join_group(&connection, &new_group[0].id) {
-        Ok(_) => (),
-        Err(e) => return HttpResponse::InternalServerError().json(e.to_string()),
-    };
-    return HttpResponse::Ok().json("Successfully added new group!");
+        .get_result::<Group>(&connection)?;
+    user.join_group(&connection, &new_group.id)?;
+    Ok(HttpResponse::Ok().json("Successfully added new group!"))
 }

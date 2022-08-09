@@ -1,5 +1,5 @@
 //! App state and database pool connection
-use crate::embedded_migrations::run_with_output;
+use crate::{embedded_migrations::run_with_output, errors::ShopError};
 use diesel::{r2d2::ConnectionManager, Connection, PgConnection};
 use dotenv::dotenv;
 use std::sync::Arc;
@@ -18,11 +18,8 @@ pub struct AppState {
 
 impl AppState {
     /// Function for getting static reference to database
-    pub fn get_pg_connection(&self) -> PgPooledConnection {
-        self.static_data
-            .db
-            .get()
-            .expect("Failed to retrieve DB connection from pool")
+    pub fn get_pg_connection(&self) -> Result<PgPooledConnection, ShopError> {
+        Ok(self.static_data.db.get()?)
     }
 }
 
@@ -33,7 +30,9 @@ pub fn initialize() -> AppState {
     let state = AppState {
         static_data: Arc::new(StaticData { db: db_pool }),
     };
-    let connection = state.get_pg_connection();
+    let connection = state
+        .get_pg_connection()
+        .expect("Failed to retrieve DB connection from pool");
     run_with_output(&connection, &mut std::io::stdout()).expect("Running migration error!");
     state
 }

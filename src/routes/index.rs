@@ -1,5 +1,6 @@
 use crate::diesel::ExpressionMethods;
 use crate::diesel::RunQueryDsl;
+use crate::errors::ShopError;
 use crate::models::group::Group;
 use crate::models::group::UserGroups;
 use crate::utils::AppState;
@@ -8,7 +9,7 @@ use crate::{
     schema::{groups, groups_users, users},
 };
 use actix_web::web::Data;
-use actix_web::{HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse};
 use diesel::result::Error;
 use diesel::QueryDsl;
 
@@ -40,9 +41,9 @@ use diesel::QueryDsl;
 ///  }
 /// ```
 /// Error code: 403
-pub async fn handle(state: Data<AppState>, req: HttpRequest) -> impl Responder {
+pub async fn handle(state: Data<AppState>, req: HttpRequest) -> Result<HttpResponse, ShopError> {
     if let Ok(user) = User::is_logged(&req) {
-        let connection = state.get_pg_connection();
+        let connection = state.get_pg_connection()?;
         let data: Result<Vec<Group>, Error> = users::table
             .inner_join(groups_users::table.inner_join(groups::table))
             .filter(users::id.eq(&user.id))
@@ -53,8 +54,10 @@ pub async fn handle(state: Data<AppState>, req: HttpRequest) -> impl Responder {
             user: user,
             groups: data,
         };
-        HttpResponse::Ok().json(info)
+        return Ok(HttpResponse::Ok().json(info));
     } else {
-        HttpResponse::Forbidden().finish()
+        Err(ShopError::NoPermission(
+            "No permission for that action".to_string(),
+        ))
     }
 }

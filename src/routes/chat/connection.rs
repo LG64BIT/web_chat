@@ -1,4 +1,5 @@
 use crate::diesel::ExpressionMethods;
+use crate::errors::ShopError;
 use crate::utils::AppState;
 use crate::{diesel::RunQueryDsl, schema::groups_users};
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
 use actix::Addr;
 use actix_web::{
     web::{self, Data, Payload},
-    Error, HttpRequest, HttpResponse,
+    HttpRequest, HttpResponse,
 };
 use actix_web_actors::ws;
 use diesel::QueryDsl;
@@ -30,26 +31,21 @@ pub async fn handle(
     stream: Payload,
     group_id: web::Path<Uuid>,
     srv: Data<Addr<Lobby>>,
-) -> Result<HttpResponse, Error> {
-    let user = match User::is_logged(&req) {
-        Ok(u) => u,
-        _ => return Ok(HttpResponse::Forbidden().finish()),
-    };
-    let connection = state.get_pg_connection();
+) -> Result<HttpResponse, ShopError> {
+    let user = User::is_logged(&req)?;
+    let connection = state.get_pg_connection()?;
     let result = users::table
         .inner_join(groups_users::table.inner_join(groups::table))
         .filter(users::id.eq(&user.id))
         .filter(groups::id.eq(&group_id.to_string()))
         .select(groups::all_columns)
-        .load::<Group>(&connection);
-    if result.is_err() || result.unwrap().len() == 0 {
-        return Ok(HttpResponse::Forbidden().finish());
+        .load::<Group>(&connection)?;
+    if result.len() == 0 {
+        return Err(ShopError::NoPermission(
+            "No permission for that action".to_string(),
+        ));
     }
-    let ws = WsConn::new(
-        *group_id,
-        srv.get_ref().clone(),
-        Uuid::parse_str(&user.id).unwrap(),
-    );
+    let ws = WsConn::new(*group_id, srv.get_ref().clone(), Uuid::parse_str(&user.id)?);
     let resp = ws::start(ws, &req, stream)?;
     Ok(resp)
 }

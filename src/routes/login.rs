@@ -1,5 +1,6 @@
 use crate::{
-    models::user::{NewUser, User, UserError},
+    errors::ShopError,
+    models::user::{NewUser, User},
     utils::AppState,
 };
 use actix_web::{
@@ -30,10 +31,8 @@ use actix_web::{
 /// }
 /// ```
 /// Error code: 208, 400, 404, 500
-pub async fn handle(state: Data<AppState>, user: Json<NewUser>) -> Result<HttpResponse, UserError> {
-    let connection = state.get_pg_connection();
-    match User::authenticate(&connection, &user.username, &user.password) {
-        Ok((valid, token)) => Ok(HttpResponse::Ok().append_header(("jwt", token)).json(valid)),
-        Err(e) => Err(e),
-    }
+pub async fn handle(state: Data<AppState>, user: Json<NewUser>) -> Result<HttpResponse, ShopError> {
+    let connection = state.get_pg_connection()?;
+    let (valid, token) = User::authenticate(&connection, &user.username, &user.password)?;
+    Ok(HttpResponse::Ok().append_header(("jwt", token)).json(valid))
 }
